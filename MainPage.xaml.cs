@@ -29,9 +29,7 @@ namespace Covid19Analysis
         /// </summary>
         public const int ApplicationWidth = 625;
 
-        private readonly StackedStringArray parsedLinesFromFile;
-        private String allTextInFile;
-        private StorageFile selectedFile;
+        private readonly CovidInformationInterpreter theCovidInformation;
         private int monthOfFirstPositiveTest;
 
         #endregion
@@ -49,8 +47,7 @@ namespace Covid19Analysis
             ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
             ApplicationView.GetForCurrentView().SetPreferredMinSize(new Size(ApplicationWidth, ApplicationHeight));
 
-            this.parsedLinesFromFile = new StackedStringArray();
-            this.allTextInFile = "";
+            this.theCovidInformation = new CovidInformationInterpreter();
             this.monthOfFirstPositiveTest = 0;
         }
 
@@ -69,41 +66,18 @@ namespace Covid19Analysis
             theFilePicker.FileTypeFilter.Add(".csv");
             theFilePicker.FileTypeFilter.Add(".txt");
 
-            this.selectedFile = await theFilePicker.PickSingleFileAsync();
-            this.allTextInFile = await FileIO.ReadTextAsync(this.selectedFile);
-            
-            this.organizeListOfStringsIntoListOfAttributesByCommas(this.organizeTextByLineIntoList());
+            StorageFile selectedFile = await theFilePicker.PickSingleFileAsync();
+            String allTextInFile = await FileIO.ReadTextAsync(selectedFile);
+
+            this.theCovidInformation.addCovidInformation(this.organizeTextByLineIntoList(allTextInFile));
             this.outputToSummaryBox();
         }
 
-        private List<string> organizeTextByLineIntoList()
+        private List<string> organizeTextByLineIntoList(String allTextInFile)
         {
             List<String> eachLineInFile = new List<string>();
-            eachLineInFile.AddRange(this.allTextInFile.Split(Environment.NewLine));
+            eachLineInFile.AddRange(allTextInFile.Split(Environment.NewLine));
             return eachLineInFile;
-        }
-
-        private void organizeListOfStringsIntoListOfAttributesByCommas(List<String> eachLineInFile)
-        {
-            for (int currentIndex = eachLineInFile.Count - 1; currentIndex >= 0; currentIndex--)
-            {
-                List<String> attributesFromFile = new List<string>();
-                attributesFromFile.AddRange(eachLineInFile.ElementAt(currentIndex).Split(","));
-                if (isAttributeXString(attributesFromFile, 1, "GA"))
-                {
-                    this.parsedLinesFromFile.addListToList(
-                        new List<string>(eachLineInFile.ElementAt(currentIndex).Split(",")));
-                }
-            }
-        }
-
-        private Boolean isAttributeXString(List<String> theList, int attributeIndex, String attributeValue)
-        {
-            if (theList.Count > 1 && theList.ElementAt(attributeIndex).Equals(attributeValue))
-            {
-                return true;
-            }
-            return false;
         }
 
         private void outputToSummaryBox()
@@ -114,7 +88,7 @@ namespace Covid19Analysis
         private String prepareOutputString()
         {
             String outputString = "";
-
+            /*
             outputString += firstPositiveTestDate();
             outputString += Environment.NewLine + highestNumberOfPositiveTests();
             outputString += Environment.NewLine + highestNumberOfNegativeTests();
@@ -126,6 +100,9 @@ namespace Covid19Analysis
             outputString += Environment.NewLine + numberOfDaysWithOverTwoThousandFiftyPositiveTests();
             outputString += Environment.NewLine + numberOfDaysWithUnderOneThousandPositiveTests();
             outputString += Environment.NewLine + iterateThroughEachMonth();
+            */
+
+            outputString = this.theCovidInformation.getCovidStatistics().toString();
 
             return outputString;
         }
@@ -215,9 +192,10 @@ namespace Covid19Analysis
             }
         }
 
+        /*
         private String firstPositiveTestDate()
         {
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (!currentList.ElementAt(2).Equals("0"))
                 {
@@ -233,7 +211,7 @@ namespace Covid19Analysis
         {
             String unformattedDateOfCurrentHighest = "00000000";
             int currentHighestNumberOfPositiveTests = int.MinValue;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(2)) > currentHighestNumberOfPositiveTests)
                 {
@@ -249,7 +227,7 @@ namespace Covid19Analysis
         {
             String unformattedDateOfCurrentLowest = "00000000";
             int currentHighestNumberOfNegativeTests = int.MinValue;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(3)) > currentHighestNumberOfNegativeTests)
                 {
@@ -265,7 +243,7 @@ namespace Covid19Analysis
         {
             String unformattedDateOfCurrentHighest = "00000000";
             int currentHighestNumber = int.MinValue;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(4)) > currentHighestNumber)
                 {
@@ -281,7 +259,7 @@ namespace Covid19Analysis
         {
             String unformattedDateOfCurrentHighest = "00000000";
             int currentHighestNumber = int.MinValue;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(5)) > currentHighestNumber)
                 {
@@ -298,7 +276,7 @@ namespace Covid19Analysis
             int firstDayOfPositiveTests = 0;
             int totalNumberOfPositiveTests = 0;
 
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(2)) > 0 && firstDayOfPositiveTests == 0)
                 {
@@ -311,7 +289,7 @@ namespace Covid19Analysis
             }
 
             int numberOfDaysCounted =
-                int.Parse(this.parsedLinesFromFile.getListOfList().ElementAt(this.parsedLinesFromFile.getListOfList().Count - 1).ElementAt(0))
+                int.Parse(this.getStackedStringList().ElementAt(this.getStackedStringList().Count - 1).ElementAt(0))
                 - firstDayOfPositiveTests;
 
             return "The average number of positive tests since the first recorded positive test: " + (totalNumberOfPositiveTests / numberOfDaysCounted).ToString();
@@ -320,7 +298,7 @@ namespace Covid19Analysis
         private String numberOfDaysWithOverTwoThousandFiftyPositiveTests()
         {
             int numberOfDays = 0;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(2)) > 2500)
                 {
@@ -334,7 +312,7 @@ namespace Covid19Analysis
         {
             int numberOfDays = 0;
             Boolean firstPositiveTestPassed = false;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (!firstPositiveTestPassed && !currentList.ElementAt(2).Equals("0"))
                 {
@@ -352,7 +330,7 @@ namespace Covid19Analysis
         {
             String highestPercentageDay = "";
             double highestPercentage = int.MinValue;
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (double.Parse(currentList.ElementAt(2)) / (double.Parse(currentList.ElementAt(2)) 
                     + double.Parse(currentList.ElementAt(3))) > highestPercentage)
@@ -372,7 +350,7 @@ namespace Covid19Analysis
             double numberOfPositiveTests = 0;
             double numberOfNegativeTests = 0;
 
-            foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+            foreach (List<String> currentList in this.getStackedStringList())
             {
                 numberOfPositiveTests += int.Parse(currentList.ElementAt(2));
                 numberOfNegativeTests += int.Parse(currentList.ElementAt(3));
@@ -381,6 +359,7 @@ namespace Covid19Analysis
             overallPercentage = Math.Round(overallPercentage, 2);
             return "The overall positivity of all tests: " + overallPercentage;
         }
+        
 
         private String iterateThroughEachMonth()
         {
@@ -389,7 +368,7 @@ namespace Covid19Analysis
             {
                 List<List<String>> currentMonthList = new List<List<String>>();
 
-                foreach (List<String> currentList in this.parsedLinesFromFile.getListOfList())
+                foreach (List<String> currentList in this.getStackedStringList())
                 {
                     if (this.getMonthValue(currentList.ElementAt(0)) == currentMonth)
                     {
@@ -519,7 +498,7 @@ namespace Covid19Analysis
             }
             return "The average number of total tests: " + (totalNumberOfTotalTests / numberOfDaysCounted).ToString();
         }
-
+        */
 
         #endregion
     }
