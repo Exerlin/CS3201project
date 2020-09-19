@@ -1,7 +1,10 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
+using Windows.Devices.Printers;
 
 namespace Covid19Analysis
 {
@@ -17,10 +20,17 @@ namespace Covid19Analysis
 
         private readonly StackedStringArray covidInformationList;
         private readonly CovidStatistics theProcessedCovidStatistics;
+        private string firstPositiveTestDate;
+        private string firstTestDate;
+        private List<MonthlyCovidStatistics> theProcessedMonthlyCovidStatisticses;
+
         public CovidInformationInterpreter()
         {
             this.covidInformationList = new StackedStringArray();
             this.theProcessedCovidStatistics = new CovidStatistics();
+            this.theProcessedMonthlyCovidStatisticses = new List<MonthlyCovidStatistics>();
+            this.firstPositiveTestDate = "000000";
+            this.firstTestDate = "000000";
         }
 
         public void addCovidInformation(List<String> eachLineInFile)
@@ -89,18 +99,36 @@ namespace Covid19Analysis
          */
         public void generateCovidStatistics()
         {
-            this.firstPositiveTestDate();
+            this.findFirstTestDate();
+            this.findFirstPositiveTestDate();
             this.highestNumberOfAttribute(PositiveIncrease);
             this.highestNumberOfAttribute(NegativeIncrease);
             this.highestNumberOfAttribute(DeathIncrease);
             this.highestNumberOfAttribute(HospitalizedIncrease);
+            this.averageNumberOfAttributePerDay(PositiveIncrease);
+            this.numberOfDaysWithOverNumberOfPositiveTests(2500);
+            this.numberOfDaysWithUnderNumberOfPositiveTests(1000);
+            this.highestPercentOfPositiveTests();
+            this.overallPositivity();
+
+            this.iterateThroughEachMonth();
         }
 
-        private void firstPositiveTestDate()
+        private void findFirstTestDate()
+        {
+            foreach (var currentList in this.getStackedStringList().Where(currentList => !currentList.ElementAt(PositiveIncrease).Equals("0") || !currentList.ElementAt(NegativeIncrease).Equals("0")))
+            {
+                this.firstTestDate = currentList.ElementAt(Date);
+                break;
+            }
+        }
+
+        private void findFirstPositiveTestDate()
         {
             foreach (var currentList in this.getStackedStringList().Where(currentList => !currentList.ElementAt(PositiveIncrease).Equals("0")))
             {
                 this.theProcessedCovidStatistics.DateFirstPositiveTest = currentList.ElementAt(Date);
+                this.firstPositiveTestDate = currentList.ElementAt(Date);
                 break;
             }
         }
@@ -135,99 +163,244 @@ namespace Covid19Analysis
             }
         }
 
-        private String averageNumberOfPositiveTestsPerDay()
+        private void averageNumberOfAttributePerDay(int attributeToFindAverageOf)
         {
-            int firstDayOfPositiveTests = 0;
-            int totalNumberOfPositiveTests = 0;
+            int totalNumberOfAttribute = 0;
+            int numberOfDaysWithAttribute = 0;
 
             foreach (List<String> currentList in this.getStackedStringList())
             {
-                if (int.Parse(currentList.ElementAt(2)) > 0 && firstDayOfPositiveTests == 0)
+                if (int.Parse(currentList.ElementAt(attributeToFindAverageOf)) > 0 && int.Parse(currentList.ElementAt(Date)) >= int.Parse(this.firstPositiveTestDate))
                 {
-                    firstDayOfPositiveTests = int.Parse(currentList.ElementAt(0));
-                    totalNumberOfPositiveTests += int.Parse(currentList.ElementAt(2));
-                }
-                else if (int.Parse(currentList.ElementAt(2)) > 0)
-                {
-                    totalNumberOfPositiveTests += int.Parse(currentList.ElementAt(2));
+                    totalNumberOfAttribute += int.Parse(currentList.ElementAt(attributeToFindAverageOf));
+                    numberOfDaysWithAttribute++;
                 }
             }
 
-            int numberOfDaysCounted =
-                int.Parse(this.getStackedStringList().ElementAt(this.getStackedStringList().Count - 1).ElementAt(0))
-                - firstDayOfPositiveTests;
-
-            return "The average number of positive tests since the first recorded positive test: " + (totalNumberOfPositiveTests / numberOfDaysCounted).ToString();
+            this.theProcessedCovidStatistics.AverageNumberOfPositiveTests = (totalNumberOfAttribute / numberOfDaysWithAttribute).ToString();
         }
 
-        private String numberOfDaysWithOverTwoThousandFiftyPositiveTests()
+        private void numberOfDaysWithOverNumberOfPositiveTests(int lowerBoundary)
         {
             int numberOfDays = 0;
             foreach (List<String> currentList in this.getStackedStringList())
             {
-                if (int.Parse(currentList.ElementAt(2)) > 2500)
+                if (int.Parse(currentList.ElementAt(PositiveIncrease)) > 2500)
                 {
                     numberOfDays++;
                 }
             }
-            return "The number of days with over 2,500 positive tests: " + numberOfDays;
+            this.theProcessedCovidStatistics.NumberOfDaysPositiveTestsAboveThreshold = numberOfDays.ToString();
         }
 
-        private String numberOfDaysWithUnderOneThousandPositiveTests()
+        private void numberOfDaysWithUnderNumberOfPositiveTests(int upperBoundary)
         {
             int numberOfDays = 0;
-            Boolean firstPositiveTestPassed = false;
             foreach (List<String> currentList in this.getStackedStringList())
             {
-                if (!firstPositiveTestPassed && !currentList.ElementAt(2).Equals("0"))
-                {
-                    firstPositiveTestPassed = true;
-                }
-                else if (firstPositiveTestPassed && int.Parse(currentList.ElementAt(2)) < 1000)
+                if (int.Parse(currentList.ElementAt(Date)) >= int.Parse(this.firstPositiveTestDate) && int.Parse(currentList.ElementAt(PositiveIncrease)) < upperBoundary)
                 {
                     numberOfDays++;
                 }
             }
-            return "The number of days with under 1,000 positive tests: " + numberOfDays;
+            this.theProcessedCovidStatistics.NumberOfDaysPositiveTestsBelowThreshold = numberOfDays.ToString();
         }
 
-        private String highestPercentOfPositiveTests()
+        private void highestPercentOfPositiveTests()
         {
             String highestPercentageDay = "";
             double highestPercentage = int.MinValue;
             foreach (List<String> currentList in this.getStackedStringList())
             {
-                if (double.Parse(currentList.ElementAt(2)) / (double.Parse(currentList.ElementAt(2))
-                    + double.Parse(currentList.ElementAt(3))) > highestPercentage)
+                if (double.Parse(currentList.ElementAt(PositiveIncrease)) / (double.Parse(currentList.ElementAt(PositiveIncrease))
+                    + double.Parse(currentList.ElementAt(NegativeIncrease))) > highestPercentage)
                 {
-                    highestPercentageDay = currentList.ElementAt(0);
-                    highestPercentage = double.Parse(currentList.ElementAt(2))
-                       / (double.Parse(currentList.ElementAt(2)) + double.Parse(currentList.ElementAt(3)));
+                    highestPercentageDay = currentList.ElementAt(Date);
+                    highestPercentage = double.Parse(currentList.ElementAt(PositiveIncrease))
+                       / (double.Parse(currentList.ElementAt(PositiveIncrease)) + double.Parse(currentList.ElementAt(NegativeIncrease)));
                 }
             }
             highestPercentage *= 100;
-            return " has the highest percentage of positive tests: "
-                + highestPercentage;
+            this.theProcessedCovidStatistics.DatePositiveTestsHighestPercent = highestPercentageDay;
+            this.theProcessedCovidStatistics.NumberPositiveTestsHighestPercent = highestPercentage.ToString(CultureInfo.InvariantCulture);
         }
 
-        private String overallPositivity()
+        private void overallPositivity()
         {
             double numberOfPositiveTests = 0;
             double numberOfNegativeTests = 0;
 
             foreach (List<String> currentList in this.getStackedStringList())
             {
-                numberOfPositiveTests += int.Parse(currentList.ElementAt(2));
-                numberOfNegativeTests += int.Parse(currentList.ElementAt(3));
+                numberOfPositiveTests += int.Parse(currentList.ElementAt(PositiveIncrease));
+                numberOfNegativeTests += int.Parse(currentList.ElementAt(NegativeIncrease));
             }
-            double overallPercentage = (numberOfPositiveTests / (numberOfNegativeTests + numberOfPositiveTests)) * 100;
+            double overallPercentage = numberOfPositiveTests / (numberOfNegativeTests + numberOfPositiveTests) * 100;
             overallPercentage = Math.Round(overallPercentage, 2);
-            return "The overall positivity of all tests: " + overallPercentage;
+            this.theProcessedCovidStatistics.OverallPositivityRate = overallPercentage.ToString(CultureInfo.InvariantCulture);
         }
 
+        private void iterateThroughEachMonth()
+        {
+            int monthOfFirstTest = this.getMonthValue(this.firstTestDate);
+            for (int currentMonth = monthOfFirstTest; currentMonth <= 12; currentMonth++)
+            {
+                StackedStringArray currentMonthCovidInformationList = new StackedStringArray();
+                MonthlyCovidStatistics currentMonthlyCovidStatistics = new MonthlyCovidStatistics(currentMonth, 2020);
+
+                foreach (List<String> currentList in this.getStackedStringList())
+                {
+                    if (this.getMonthValue(currentList.ElementAt(0)) == currentMonth)
+                    {
+                        currentMonthCovidInformationList.addListToList(currentList);
+                        currentMonthlyCovidStatistics.NumberOfDaysContainingData++;
+                    }
+
+                }
+
+                if (currentMonthlyCovidStatistics.NumberOfDaysContainingData > 0)
+                {
+                    highestNumberOfPositiveTestsMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    lowestNumberOfPositiveTestsMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    highestNumberOfTotalTestsMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    highestNumberOfTotalTestsMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    lowestNumberOfTotalTestsMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    averageNumberOfPositiveTestsPerDayMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                    averageNumberOfTotalTestsPerDayMonthly(currentMonthCovidInformationList, currentMonthlyCovidStatistics);
+                }
+                this.theProcessedMonthlyCovidStatisticses.Add(currentMonthlyCovidStatistics);
+            }
+        }
+
+        private void highestNumberOfPositiveTestsMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            String unformattedDateOfCurrentHighest = "00000000";
+            int currentHighestNumberOfPositiveTests = int.MinValue;
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                if (int.Parse(currentList.ElementAt(PositiveIncrease)) > currentHighestNumberOfPositiveTests)
+                {
+                    unformattedDateOfCurrentHighest = currentList.ElementAt(Date);
+                    currentHighestNumberOfPositiveTests = int.Parse(currentList.ElementAt(PositiveIncrease));
+                }
+            }
+            if (currentHighestNumberOfPositiveTests != int.MinValue)
+            {
+                statisticsToWriteTo.NumberHighestPositiveTests = currentHighestNumberOfPositiveTests.ToString();
+                statisticsToWriteTo.DateHighestPositiveTests = unformattedDateOfCurrentHighest;
+            }
+
+        }
+        
+        private void lowestNumberOfPositiveTestsMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            String unformattedDateOfCurrentLowest = "00000000";
+            int currentLowestNumberOfPositiveTests = int.MaxValue;
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                if (int.Parse(currentList.ElementAt(PositiveIncrease)) < currentLowestNumberOfPositiveTests)
+                {
+                    unformattedDateOfCurrentLowest = currentList.ElementAt(Date);
+                    currentLowestNumberOfPositiveTests = int.Parse(currentList.ElementAt(PositiveIncrease));
+                }
+            }
+
+            if (currentLowestNumberOfPositiveTests != int.MaxValue)
+            {
+                statisticsToWriteTo.NumberLowestPositiveTests = currentLowestNumberOfPositiveTests.ToString();
+                statisticsToWriteTo.DateLowestPositiveTests = unformattedDateOfCurrentLowest;
+            }
+        }
+
+        private void highestNumberOfTotalTestsMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            String unformattedDateOfCurrentHighest = "00000000";
+            int currentHighestNumberOfTests = int.MinValue;
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                if (int.Parse(currentList.ElementAt(PositiveIncrease)) + int.Parse(currentList.ElementAt(NegativeIncrease)) > currentHighestNumberOfTests)
+                {
+                    unformattedDateOfCurrentHighest = currentList.ElementAt(Date);
+                    currentHighestNumberOfTests = int.Parse(currentList.ElementAt(PositiveIncrease)) + int.Parse(currentList.ElementAt(NegativeIncrease));
+                }
+            }
+
+            if (currentHighestNumberOfTests != int.MinValue)
+            {
+                statisticsToWriteTo.NumberHighestTotalTests = currentHighestNumberOfTests.ToString();
+                statisticsToWriteTo.DateHighestTotalTests = unformattedDateOfCurrentHighest;
+            }
+        }
+
+        private void lowestNumberOfTotalTestsMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            String unformattedDateOfCurrentLowest = "00000000";
+            int currentLowestNumberOfTests = int.MaxValue;
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                if (int.Parse(currentList.ElementAt(PositiveIncrease)) + int.Parse(currentList.ElementAt(NegativeIncrease)) < currentLowestNumberOfTests)
+                {
+                    unformattedDateOfCurrentLowest = currentList.ElementAt(Date);
+                    currentLowestNumberOfTests = int.Parse(currentList.ElementAt(PositiveIncrease)) + int.Parse(currentList.ElementAt(NegativeIncrease));
+                }
+            }
+
+            if (currentLowestNumberOfTests != int.MaxValue)
+            {
+                statisticsToWriteTo.NumberLowestTotalTests = currentLowestNumberOfTests.ToString();
+                statisticsToWriteTo.DateLowestTotalTests = unformattedDateOfCurrentLowest;
+            }
+        }
+
+        private void averageNumberOfPositiveTestsPerDayMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            int totalNumberOfAttribute = 0;
+            int numberOfDaysCounted = 0;
+
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                totalNumberOfAttribute += int.Parse(currentList.ElementAt(PositiveIncrease));
+                numberOfDaysCounted++;
+            }
+
+            if (numberOfDaysCounted != 0)
+            {
+                double averageNumberOfPositiveTests = Convert.ToDouble(totalNumberOfAttribute) / Convert.ToDouble(numberOfDaysCounted);
+                statisticsToWriteTo.NumberAveragePositiveTests = averageNumberOfPositiveTests.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        private void averageNumberOfTotalTestsPerDayMonthly(StackedStringArray givenList, MonthlyCovidStatistics statisticsToWriteTo)
+        {
+            int totalNumberOfTotalTests = 0;
+            int numberOfDaysCounted = 0;
+
+            foreach (List<String> currentList in givenList.getListOfList())
+            {
+                totalNumberOfTotalTests += int.Parse(currentList.ElementAt(PositiveIncrease)) + int.Parse(currentList.ElementAt(NegativeIncrease));
+                numberOfDaysCounted++;
+            }
+
+            if (numberOfDaysCounted != 0)
+            {
+                double averageNumberOfTotalTests = Convert.ToDouble(totalNumberOfTotalTests) / Convert.ToDouble(numberOfDaysCounted);
+                statisticsToWriteTo.NumberAverageTotalTests = averageNumberOfTotalTests.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+        
         private List<List<String>> getStackedStringList()
         {
             return this.covidInformationList.getListOfList();
+        }
+
+        private int getMonthValue(String date)
+        {
+            return int.Parse(date.Substring(4, 2));
+        }
+
+        private int getDayValue(String date)
+        {
+            return int.Parse(date.Substring(6, 2));
         }
     }
 }

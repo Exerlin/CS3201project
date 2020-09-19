@@ -8,7 +8,7 @@ namespace Covid19Analysis
     public class StackedStringArray
     {
 
-        private List<List<string>> theListOfLists;
+        private readonly List<List<string>> theListOfLists;
 
         public StackedStringArray()
         {

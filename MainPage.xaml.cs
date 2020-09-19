@@ -274,17 +274,17 @@ namespace Covid19Analysis
         private String averageNumberOfPositiveTestsPerDay()
         {
             int firstDayOfPositiveTests = 0;
-            int totalNumberOfPositiveTests = 0;
+            int totalNumberOfAttribute = 0;
 
             foreach (List<String> currentList in this.getStackedStringList())
             {
                 if (int.Parse(currentList.ElementAt(2)) > 0 && firstDayOfPositiveTests == 0)
                 {
                     firstDayOfPositiveTests = int.Parse(currentList.ElementAt(0));
-                    totalNumberOfPositiveTests += int.Parse(currentList.ElementAt(2));
+                    totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
                 } else if (int.Parse(currentList.ElementAt(2)) > 0)
                 {
-                    totalNumberOfPositiveTests += int.Parse(currentList.ElementAt(2));
+                    totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
                 }
             }
 
@@ -292,7 +292,7 @@ namespace Covid19Analysis
                 int.Parse(this.getStackedStringList().ElementAt(this.getStackedStringList().Count - 1).ElementAt(0))
                 - firstDayOfPositiveTests;
 
-            return "The average number of positive tests since the first recorded positive test: " + (totalNumberOfPositiveTests / numberOfDaysCounted).ToString();
+            return "The average number of positive tests since the first recorded positive test: " + (totalNumberOfAttribute / numberOfDaysCounted).ToString();
         }
 
         private String numberOfDaysWithOverTwoThousandFiftyPositiveTests()
@@ -464,12 +464,12 @@ namespace Covid19Analysis
 
         private String averageNumberOfPositiveTestsPerDayMonthly(List<List<String>> givenList)
         {
-            int totalNumberOfPositiveTests = 0;
+            int totalNumberOfAttribute = 0;
             int numberOfDaysCounted = 0;
 
             foreach (List<String> currentList in givenList)
             {
-                totalNumberOfPositiveTests += int.Parse(currentList.ElementAt(2));
+                totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
                 numberOfDaysCounted++;
             }
 
@@ -478,7 +478,7 @@ namespace Covid19Analysis
                 return "There have been no tests.";
             }
             return "The average number of positive tests: " +
-                   (totalNumberOfPositiveTests / numberOfDaysCounted).ToString();
+                   (totalNumberOfAttribute / numberOfDaysCounted).ToString();
         }
 
         private String averageNumberOfTotalTestsPerDayMonthly(List<List<String>> givenList)

@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Covid19Analysis
 {
@@ -24,6 +21,7 @@ namespace Covid19Analysis
             this.NumberHospitalizationsHighest = "";
 
             this.DatePositiveTestsHighestPercent = "";
+            this.NumberPositiveTestsHighestPercent = "";
             this.AverageNumberOfPositiveTests = "";
             this.OverallPositivityRate = "";
             this.NumberOfDaysPositiveTestsAboveThreshold = "";
@@ -55,6 +53,8 @@ namespace Covid19Analysis
         public string NumberHospitalizationsHighest { get; set; }
 
         public string DatePositiveTestsHighestPercent { get; set; }
+
+        public string NumberPositiveTestsHighestPercent { get; set; }
 
         public string AverageNumberOfPositiveTests { get; set; }
 
