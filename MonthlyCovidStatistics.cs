@@ -1,28 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Covid19Analysis
 {
     public class MonthlyCovidStatistics
     {
-        public MonthlyCovidStatistics()
-        {
-            this.Month = 0;
-            this.Year = 0;
-            this.NumberOfDaysContainingData = 0;
-
-            this.NumberHighestPositiveTests = "";
-            this.DateHighestPositiveTests = "";
-            this.NumberLowestPositiveTests = "";
-            this.DateLowestPositiveTests = "";
-            this.NumberHighestTotalTests = "";
-            this.DateHighestTotalTests = "";
-            this.NumberLowestTotalTests = "";
-            this.DateLowestTotalTests = "";
-
-            this.NumberAveragePositiveTests = "";
-            this.NumberAverageTotalTests = "";
-        }
 
         public MonthlyCovidStatistics(int month, int year)
         {
@@ -31,13 +12,13 @@ namespace Covid19Analysis
             this.NumberOfDaysContainingData = 0;
 
             this.NumberHighestPositiveTests = "";
-            this.DateHighestPositiveTests = "";
+            this.DateHighestPositiveTests = new List<string>();
             this.NumberLowestPositiveTests = "";
-            this.DateLowestPositiveTests = "";
+            this.DateLowestPositiveTests = new List<string>();
             this.NumberHighestTotalTests = "";
-            this.DateHighestTotalTests = "";
+            this.DateHighestTotalTests = new List<string>();
             this.NumberLowestTotalTests = "";
-            this.DateLowestTotalTests = "";
+            this.DateLowestTotalTests = new List<string>();
 
             this.NumberAveragePositiveTests = "";
             this.NumberAverageTotalTests = "";
@@ -51,19 +32,19 @@ namespace Covid19Analysis
 
         public string NumberHighestPositiveTests { get; set; }
 
-        public string DateHighestPositiveTests { get; set; }
+        public List<string> DateHighestPositiveTests { get; set; }
 
         public string NumberLowestPositiveTests { get; set; }
 
-        public string DateLowestPositiveTests { get; set; }
+        public List<string> DateLowestPositiveTests { get; set; }
 
         public string NumberHighestTotalTests { get; set; }
 
-        public string DateHighestTotalTests { get; set; }
+        public List<string> DateHighestTotalTests { get; set; }
 
         public string NumberLowestTotalTests { get; set; }
 
-        public string DateLowestTotalTests { get; set; }
+        public List<string> DateLowestTotalTests { get; set; }
 
         public string NumberAveragePositiveTests { get; set; }
 

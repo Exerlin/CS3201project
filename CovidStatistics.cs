@@ -27,7 +27,7 @@ namespace Covid19Analysis
             this.NumberOfDaysPositiveTestsAboveThreshold = "";
             this.NumberOfDaysPositiveTestsBelowThreshold = "";
 
-            this.HistogramDataContents = new List<string>();
+            this.HistogramDataContents = new List<int>();
         }
 
         public string DateFirstPositiveTest { get; set; }
@@ -64,7 +64,7 @@ namespace Covid19Analysis
 
         public string NumberOfDaysPositiveTestsBelowThreshold { get; set; }
 
-        public List<string> HistogramDataContents { get; set; }
+        public List<int> HistogramDataContents { get; set; }
 
         public string toString()
         {

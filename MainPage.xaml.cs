@@ -7,7 +7,6 @@ using Windows.Storage.Pickers;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 
-
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace Covid19Analysis
@@ -30,7 +29,6 @@ namespace Covid19Analysis
         public const int ApplicationWidth = 625;
 
         private readonly CovidInformationInterpreter theCovidInformation;
-        private int monthOfFirstPositiveTest;
 
         #endregion
 
@@ -48,7 +46,6 @@ namespace Covid19Analysis
             ApplicationView.GetForCurrentView().SetPreferredMinSize(new Size(ApplicationWidth, ApplicationHeight));
 
             this.theCovidInformation = new CovidInformationInterpreter();
-            this.monthOfFirstPositiveTest = 0;
         }
 
         #endregion
@@ -60,22 +57,23 @@ namespace Covid19Analysis
             this.summaryTextBox.Text = "Load file was invoked." + Environment.NewLine;
             FileOpenPicker theFilePicker = new FileOpenPicker
             {
-                ViewMode = PickerViewMode.Thumbnail, SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                ViewMode = PickerViewMode.Thumbnail,
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
             };
 
             theFilePicker.FileTypeFilter.Add(".csv");
             theFilePicker.FileTypeFilter.Add(".txt");
 
             StorageFile selectedFile = await theFilePicker.PickSingleFileAsync();
-            String allTextInFile = await FileIO.ReadTextAsync(selectedFile);
+            string allTextInFile = await FileIO.ReadTextAsync(selectedFile);
 
             this.theCovidInformation.addCovidInformation(this.organizeTextByLineIntoList(allTextInFile));
             this.outputToSummaryBox();
         }
 
-        private List<string> organizeTextByLineIntoList(String allTextInFile)
+        private List<string> organizeTextByLineIntoList(string allTextInFile)
         {
-            List<String> eachLineInFile = new List<string>();
+            List<string> eachLineInFile = new List<string>();
             eachLineInFile.AddRange(allTextInFile.Split(Environment.NewLine));
             return eachLineInFile;
         }
@@ -85,420 +83,266 @@ namespace Covid19Analysis
             this.summaryTextBox.Text = prepareOutputString();
         }
 
-        private String prepareOutputString()
+        private string prepareOutputString()
         {
-            String outputString = "";
-            /*
-            outputString += firstPositiveTestDate();
-            outputString += Environment.NewLine + highestNumberOfPositiveTests();
-            outputString += Environment.NewLine + highestNumberOfNegativeTests();
-            outputString += Environment.NewLine + highestNumberOfDeaths();
-            outputString += Environment.NewLine + highestNumberOfHospitalizations();
-            outputString += Environment.NewLine + highestPercentOfPositiveTests();
-            outputString += Environment.NewLine + averageNumberOfPositiveTestsPerDay();
-            outputString += Environment.NewLine + overallPositivity();
-            outputString += Environment.NewLine + numberOfDaysWithOverTwoThousandFiftyPositiveTests();
-            outputString += Environment.NewLine + numberOfDaysWithUnderOneThousandPositiveTests();
-            outputString += Environment.NewLine + iterateThroughEachMonth();
-            */
+            return this.formatStatistics(this.theCovidInformation.getCovidStatistics());
+        }
 
-            outputString = this.theCovidInformation.getCovidStatistics().toString();
+        private string formatStatistics(CovidStatistics theStatisticsToFormat)
+        {
+            string outputString = "The first positive test occurred on " +
+                                  stringToDateFormat(theStatisticsToFormat.DateFirstPositiveTest);
+            outputString += Environment.NewLine + "The highest number of positive tests was " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberPositiveTestsHighest)
+                            + " on " + stringToDateFormat(theStatisticsToFormat.DatePositiveTestsHighest);
+            outputString += Environment.NewLine + "The highest number of negative tests was " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberNegativeTestsHighest)
+                                                 + " on " + stringToDateFormat(theStatisticsToFormat.DateNegativeTestsHighest);
+            outputString += Environment.NewLine + "The highest number of all tests was " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberAllTestsHighest)
+                                                 + " on " + stringToDateFormat(theStatisticsToFormat.DateAllTestsHighest);
+            outputString += Environment.NewLine + "The highest number of deaths was " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberDeathsHighest)
+                                                 + " on " + stringToDateFormat(theStatisticsToFormat.DateDeathsHighest);
+            outputString += Environment.NewLine + "The highest number of hospitalizations was " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberHospitalizationsHighest)
+                                                 + " on " + stringToDateFormat(theStatisticsToFormat.DateHospitalizationsHighest);
+            outputString += Environment.NewLine + "The highest percentage of positive tests was " +
+                            theStatisticsToFormat.NumberPositiveTestsHighestPercent
+                                                 + " on " + stringToDateFormat(theStatisticsToFormat.DatePositiveTestsHighestPercent);
+
+            outputString += Environment.NewLine + "The average number of positive tests are " +
+                            thousandsCommaPlacer(theStatisticsToFormat.AverageNumberOfPositiveTests);
+            outputString += Environment.NewLine + "The overall positivity of the tests are " +
+                            thousandsCommaPlacer(theStatisticsToFormat.OverallPositivityRate);
+            outputString += Environment.NewLine + "The number of days with more than 2500 positive tests are " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberOfDaysPositiveTestsAboveThreshold);
+            outputString += Environment.NewLine + "The number of days with less than 1000 positive tests are " +
+                            thousandsCommaPlacer(theStatisticsToFormat.NumberOfDaysPositiveTestsBelowThreshold);
+            outputString += formatHistogramData(theStatisticsToFormat);
+
+            outputString += formatMonthlyStatistics();
 
             return outputString;
         }
 
-        private String stringToDateFormat(String theString)
+        private string formatMonthlyStatistics()
         {
-            theString = theString.Insert(4, "/");
-            theString = theString.Insert(7, "/");
-            return theString;
+            string outputString = "";
+            for (int currentMonthIndex = 0;
+                currentMonthIndex < this.theCovidInformation.getNumberOfMonthsInData();
+                currentMonthIndex++)
+            {
+                MonthlyCovidStatistics currentMonthlyCovidStatistics =
+                    this.theCovidInformation.getMonthlyCovidStatistics(currentMonthIndex);
+                outputString += Environment.NewLine + Environment.NewLine
+                                + getMonthStringFromInt(currentMonthlyCovidStatistics.Month)
+                                + " " + currentMonthlyCovidStatistics.Year + " (" 
+                                + currentMonthlyCovidStatistics.NumberOfDaysContainingData 
+                                + " days of data):";
+
+                outputString += Environment.NewLine
+                                + "Highest number of positive tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberHighestPositiveTests)
+                                + " occurred on the " + multipleDaysFormat(currentMonthlyCovidStatistics.DateHighestPositiveTests) 
+                                + ".";
+                outputString += Environment.NewLine
+                                + "Lowest number of positive tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberLowestPositiveTests)
+                                + " occurred on the " + multipleDaysFormat(currentMonthlyCovidStatistics.DateLowestPositiveTests)
+                                + ".";
+                outputString += Environment.NewLine
+                                + "Highest number of total tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberHighestTotalTests)
+                                + " occurred on the " + multipleDaysFormat(currentMonthlyCovidStatistics.DateHighestTotalTests)
+                                + ".";
+                outputString += Environment.NewLine
+                                + "Lowest number of total tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberLowestTotalTests)
+                                + " occurred on the " + multipleDaysFormat(currentMonthlyCovidStatistics.DateLowestTotalTests)
+                                + ".";
+
+                outputString += Environment.NewLine
+                                + "Average number of positive tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberAveragePositiveTests);
+                outputString += Environment.NewLine
+                                + "Average number of all tests: " 
+                                + thousandsCommaPlacer(currentMonthlyCovidStatistics.NumberAverageTotalTests);
+            }
+            return outputString;
         }
 
-        private String thousandsCommaPlacer(int theInt)
+        private string formatHistogramData(CovidStatistics theStatisticsToFormat)
         {
-            return theInt.ToString();
+            string outputString = Environment.NewLine;
+            int currentIndex = 0;
+            foreach (var currentNumberOfDays in theStatisticsToFormat.HistogramDataContents)
+            {
+                if (currentNumberOfDays == theStatisticsToFormat.HistogramDataContents.First())
+                {
+                    outputString += Environment.NewLine 
+                                    + "0 - 500: " 
+                                    + thousandsCommaPlacer(currentNumberOfDays);
+                }
+                else
+                {
+
+                    outputString += Environment.NewLine 
+                                    + thousandsCommaPlacer((currentIndex * 500) + 1) + " - " 
+                                    + thousandsCommaPlacer((currentIndex * 500) + 500) + ": " 
+                                    + thousandsCommaPlacer(currentNumberOfDays);
+                }
+
+                currentIndex++;
+            }
+
+            return outputString;
         }
 
-        private int getMonthValue(String date)
+        private string multipleDaysFormat(List<string> theDaysToFormat)
+        {
+            if (theDaysToFormat.Count == 1)
+            {
+                return numberSuffixPlacer(this.getDayValue(theDaysToFormat.ElementAt(0)));
+            }
+
+            string outputString = "";
+            foreach (var currentDate in theDaysToFormat)
+            {
+                if (theDaysToFormat.First() == currentDate)
+                {
+                    outputString += numberSuffixPlacer(this.getDayValue(currentDate));
+                }
+                else
+                {
+                    outputString += " and " + numberSuffixPlacer(this.getDayValue(currentDate));
+                }
+            }
+
+            return outputString;
+        }
+
+        private string stringToDateFormat(string theString)
+        {
+            try
+            {
+                theString = theString.Insert(4, "/");
+                theString = theString.Insert(7, "/");
+                theString = DateTime.Parse(theString).Date.ToString("d");
+                return theString;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return "[No Date]";
+            }
+
+        }
+
+        private string thousandsCommaPlacer(int intToPlaceCommaIn)
+        {
+            return $"{intToPlaceCommaIn:n0}";
+        }
+
+        private string thousandsCommaPlacer(string stringNumberToPlaceCommaIn)
+        {
+            if (stringNumberToPlaceCommaIn.Equals(""))
+            {
+                return "0";
+            }
+            if (int.TryParse(stringNumberToPlaceCommaIn, out _))
+            {
+                return $"{double.Parse(stringNumberToPlaceCommaIn):n0}";
+            } 
+            return $"{double.Parse(stringNumberToPlaceCommaIn):n}";
+        }
+
+        private int getMonthValue(string date)
         {
             return int.Parse(date.Substring(4, 2));
         }
 
-        private int getDayValue(String date)
+        private int getDayValue(string date)
         {
             return int.Parse(date.Substring(6, 2));
         }
 
-        private String numberEndingPlacer(int numberToAddPrefixTo)
+        private string numberSuffixPlacer(int numberToAddPrefixTo)
         {
-            if (numberToAddPrefixTo.ToString().EndsWith("11") || 
-                numberToAddPrefixTo.ToString().EndsWith("12") || 
+            if (numberToAddPrefixTo.ToString().EndsWith("11") ||
+                numberToAddPrefixTo.ToString().EndsWith("12") ||
                 numberToAddPrefixTo.ToString().EndsWith("13"))
             {
                 return numberToAddPrefixTo + "th";
-            } else if (numberToAddPrefixTo.ToString().EndsWith("1"))
+            }
+            else if (numberToAddPrefixTo.ToString().EndsWith("1"))
             {
                 return numberToAddPrefixTo + "st";
-            } else if (numberToAddPrefixTo.ToString().EndsWith("2"))
+            }
+            else if (numberToAddPrefixTo.ToString().EndsWith("2"))
             {
                 return numberToAddPrefixTo + "nd";
-            } else if (numberToAddPrefixTo.ToString().EndsWith("3"))
+            }
+            else if (numberToAddPrefixTo.ToString().EndsWith("3"))
             {
                 return numberToAddPrefixTo + "rd";
-            } else
+            }
+            else
             {
                 return numberToAddPrefixTo + "th";
             }
         }
 
-        private String getMonthStringFromInt(int monthNumber)
+        private string getMonthStringFromInt(int monthNumber)
         {
             if (monthNumber == 1)
             {
                 return "January";
-            } else if (monthNumber == 2)
+            }
+            else if (monthNumber == 2)
             {
                 return "February";
-            } else if (monthNumber == 3)
+            }
+            else if (monthNumber == 3)
             {
                 return "March";
-            } else if (monthNumber == 4)
+            }
+            else if (monthNumber == 4)
             {
                 return "April";
-            } else if (monthNumber == 5)
+            }
+            else if (monthNumber == 5)
             {
                 return "May";
-            } else if (monthNumber == 6)
+            }
+            else if (monthNumber == 6)
             {
                 return "June";
-            } else if (monthNumber == 7)
+            }
+            else if (monthNumber == 7)
             {
                 return "July";
-            } else if (monthNumber == 8)
+            }
+            else if (monthNumber == 8)
             {
                 return "August";
-            } else if (monthNumber == 9)
+            }
+            else if (monthNumber == 9)
             {
                 return "September";
-            } else if (monthNumber == 10)
+            }
+            else if (monthNumber == 10)
             {
                 return "October";
-            } else if (monthNumber == 11)
+            }
+            else if (monthNumber == 11)
             {
                 return "November";
-            } else
+            }
+            else
             {
                 return "December";
             }
         }
-
-        /*
-        private String firstPositiveTestDate()
-        {
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (!currentList.ElementAt(2).Equals("0"))
-                {
-                    this.monthOfFirstPositiveTest = getMonthValue(currentList.ElementAt(0));
-                    return this.stringToDateFormat(currentList.ElementAt(0)) 
-                        + " is the date with the first instance of a positive test.";
-                }
-            }
-            return "There has not been a positive test.";
-        }
-
-        private String highestNumberOfPositiveTests()
-        {
-            String unformattedDateOfCurrentHighest = "00000000";
-            int currentHighestNumberOfPositiveTests = int.MinValue;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(2)) > currentHighestNumberOfPositiveTests)
-                {
-                    unformattedDateOfCurrentHighest = currentList.ElementAt(0);
-                    currentHighestNumberOfPositiveTests = int.Parse(currentList.ElementAt(2));
-                }
-            }
-            return this.stringToDateFormat(unformattedDateOfCurrentHighest) 
-                + " has the highest number of positive tests: " + thousandsCommaPlacer(currentHighestNumberOfPositiveTests);
-        }
-
-        private String highestNumberOfNegativeTests()
-        {
-            String unformattedDateOfCurrentLowest = "00000000";
-            int currentHighestNumberOfNegativeTests = int.MinValue;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(3)) > currentHighestNumberOfNegativeTests)
-                {
-                    unformattedDateOfCurrentLowest = currentList.ElementAt(0);
-                    currentHighestNumberOfNegativeTests = int.Parse(currentList.ElementAt(3));
-                }
-            }
-            return this.stringToDateFormat(unformattedDateOfCurrentLowest)
-                + " has the highest number of negative tests: " + thousandsCommaPlacer(currentHighestNumberOfNegativeTests);
-        }
-
-        private String highestNumberOfDeaths()
-        {
-            String unformattedDateOfCurrentHighest = "00000000";
-            int currentHighestNumber = int.MinValue;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(4)) > currentHighestNumber)
-                {
-                    unformattedDateOfCurrentHighest = currentList.ElementAt(0);
-                    currentHighestNumber = int.Parse(currentList.ElementAt(4));
-                }
-            }
-            return this.stringToDateFormat(unformattedDateOfCurrentHighest)
-                + " has the highest number of deaths: " + thousandsCommaPlacer(currentHighestNumber);
-        }
-
-        private String highestNumberOfHospitalizations()
-        {
-            String unformattedDateOfCurrentHighest = "00000000";
-            int currentHighestNumber = int.MinValue;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(5)) > currentHighestNumber)
-                {
-                    unformattedDateOfCurrentHighest = currentList.ElementAt(0);
-                    currentHighestNumber = int.Parse(currentList.ElementAt(5));
-                }
-            }
-            return this.stringToDateFormat(unformattedDateOfCurrentHighest)
-                + " has the highest number of hospitalizations: " + thousandsCommaPlacer(currentHighestNumber);
-        }
-
-        private String averageNumberOfPositiveTestsPerDay()
-        {
-            int firstDayOfPositiveTests = 0;
-            int totalNumberOfAttribute = 0;
-
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(2)) > 0 && firstDayOfPositiveTests == 0)
-                {
-                    firstDayOfPositiveTests = int.Parse(currentList.ElementAt(0));
-                    totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
-                } else if (int.Parse(currentList.ElementAt(2)) > 0)
-                {
-                    totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
-                }
-            }
-
-            int numberOfDaysCounted =
-                int.Parse(this.getStackedStringList().ElementAt(this.getStackedStringList().Count - 1).ElementAt(0))
-                - firstDayOfPositiveTests;
-
-            return "The average number of positive tests since the first recorded positive test: " + (totalNumberOfAttribute / numberOfDaysCounted).ToString();
-        }
-
-        private String numberOfDaysWithOverTwoThousandFiftyPositiveTests()
-        {
-            int numberOfDays = 0;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (int.Parse(currentList.ElementAt(2)) > 2500)
-                {
-                    numberOfDays++;
-                }
-            }
-            return "The number of days with over 2,500 positive tests: " + numberOfDays;
-        }
-
-        private String numberOfDaysWithUnderOneThousandPositiveTests()
-        {
-            int numberOfDays = 0;
-            Boolean firstPositiveTestPassed = false;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (!firstPositiveTestPassed && !currentList.ElementAt(2).Equals("0"))
-                {
-                    firstPositiveTestPassed = true;
-                }
-                else if (firstPositiveTestPassed && int.Parse(currentList.ElementAt(2)) < 1000)
-                {
-                    numberOfDays++;
-                }
-            }
-            return "The number of days with under 1,000 positive tests: " + numberOfDays;
-        }
-
-        private String highestPercentOfPositiveTests()
-        {
-            String highestPercentageDay = "";
-            double highestPercentage = int.MinValue;
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                if (double.Parse(currentList.ElementAt(2)) / (double.Parse(currentList.ElementAt(2)) 
-                    + double.Parse(currentList.ElementAt(3))) > highestPercentage)
-                {
-                    highestPercentageDay = currentList.ElementAt(0);
-                    highestPercentage = double.Parse(currentList.ElementAt(2))
-                       / (double.Parse(currentList.ElementAt(2)) + double.Parse(currentList.ElementAt(3)));
-                }
-            }
-            highestPercentage *= 100;
-            return this.stringToDateFormat(highestPercentageDay) + " has the highest percentage of positive tests: " 
-                + highestPercentage;
-        }
-
-        private String overallPositivity()
-        {
-            double numberOfPositiveTests = 0;
-            double numberOfNegativeTests = 0;
-
-            foreach (List<String> currentList in this.getStackedStringList())
-            {
-                numberOfPositiveTests += int.Parse(currentList.ElementAt(2));
-                numberOfNegativeTests += int.Parse(currentList.ElementAt(3));
-            }
-            double overallPercentage = (numberOfPositiveTests / (numberOfNegativeTests + numberOfPositiveTests)) * 100;
-            overallPercentage = Math.Round(overallPercentage, 2);
-            return "The overall positivity of all tests: " + overallPercentage;
-        }
-        
-
-        private String iterateThroughEachMonth()
-        {
-            String finalString = "";
-            for (int currentMonth = this.monthOfFirstPositiveTest; currentMonth <= 12; currentMonth++)
-            {
-                List<List<String>> currentMonthList = new List<List<String>>();
-
-                foreach (List<String> currentList in this.getStackedStringList())
-                {
-                    if (this.getMonthValue(currentList.ElementAt(0)) == currentMonth)
-                    {
-                        currentMonthList.Add(currentList);
-                    }
-                    
-                }
-                if (!highestNumberOfPositiveTestsMonthly(currentMonthList).Equals("0")) 
-                {
-                    finalString += Environment.NewLine + Environment.NewLine + this.getMonthStringFromInt(currentMonth);
-                    finalString += Environment.NewLine + highestNumberOfPositiveTestsMonthly(currentMonthList);
-                    finalString += Environment.NewLine + lowestNumberOfPositiveTestsMonthly(currentMonthList);
-                    finalString += Environment.NewLine + highestNumberOfTotalTestsMonthly(currentMonthList);
-                    finalString += Environment.NewLine + lowestNumberOfTotalTestsMonthly(currentMonthList);
-                    finalString += Environment.NewLine + averageNumberOfPositiveTestsPerDayMonthly(currentMonthList);
-                    finalString += Environment.NewLine + averageNumberOfTotalTestsPerDayMonthly(currentMonthList);
-
-                }               
-            }
-            return finalString;
-        }
-
-        private String highestNumberOfPositiveTestsMonthly(List<List<String>> givenList)
-        {
-            String unformattedDateOfCurrentHighest = "00000000";
-            int currentHighestNumberOfPositiveTests = int.MinValue;
-            foreach (List<String> currentList in givenList)
-            {
-                if (int.Parse(currentList.ElementAt(2)) > currentHighestNumberOfPositiveTests)
-                {
-                    unformattedDateOfCurrentHighest = currentList.ElementAt(0);
-                    currentHighestNumberOfPositiveTests = int.Parse(currentList.ElementAt(2));
-                }
-            }
-            if (currentHighestNumberOfPositiveTests == int.MinValue)
-            {
-                return "0";
-            }
-            return "The " + this.numberEndingPlacer(this.getDayValue(unformattedDateOfCurrentHighest))
-                + " has the highest number of positive tests: " + thousandsCommaPlacer(currentHighestNumberOfPositiveTests);
-        }
-
-        private String lowestNumberOfPositiveTestsMonthly(List<List<String>> givenList)
-        {
-            String unformattedDateOfCurrentLowest = "00000000";
-            int currentLowestNumberOfPositiveTests = int.MaxValue;
-            foreach (List<String> currentList in givenList)
-            {
-                if (int.Parse(currentList.ElementAt(2)) < currentLowestNumberOfPositiveTests)
-                {
-                    unformattedDateOfCurrentLowest = currentList.ElementAt(0);
-                    currentLowestNumberOfPositiveTests = int.Parse(currentList.ElementAt(2));
-                }
-            }
-            
-            return "The " + this.numberEndingPlacer(this.getDayValue(unformattedDateOfCurrentLowest))
-                + " has the lowest number of positive tests: " + thousandsCommaPlacer(currentLowestNumberOfPositiveTests);
-        }
-
-        private String highestNumberOfTotalTestsMonthly(List<List<String>> givenList)
-        {
-            String unformattedDateOfCurrentHighest = "00000000";
-            int currentHighestNumberOfTests = int.MinValue;
-            foreach (List<String> currentList in givenList)
-            {
-                if (int.Parse(currentList.ElementAt(2)) + int.Parse(currentList.ElementAt(3)) > currentHighestNumberOfTests)
-                {
-                    unformattedDateOfCurrentHighest = currentList.ElementAt(0);
-                    currentHighestNumberOfTests = int.Parse(currentList.ElementAt(2)) + int.Parse(currentList.ElementAt(3));
-                }
-            }
-            
-            return "The " + this.numberEndingPlacer(this.getDayValue(unformattedDateOfCurrentHighest))
-                + " has the highest number of total tests: " + thousandsCommaPlacer(currentHighestNumberOfTests);
-        }
-
-        private String lowestNumberOfTotalTestsMonthly(List<List<String>> givenList)
-        {
-            String unformattedDateOfCurrentLowest = "00000000";
-            int currentLowestNumberOfTests = int.MaxValue;
-            foreach (List<String> currentList in givenList)
-            {
-                if (int.Parse(currentList.ElementAt(2)) + int.Parse(currentList.ElementAt(3)) < currentLowestNumberOfTests)
-                {
-                    unformattedDateOfCurrentLowest = currentList.ElementAt(0);
-                    currentLowestNumberOfTests = int.Parse(currentList.ElementAt(2)) + int.Parse(currentList.ElementAt(3));
-                }
-            }
-
-            return "The " + this.numberEndingPlacer(this.getDayValue(unformattedDateOfCurrentLowest))
-                + " has the lowest number of total tests: " + thousandsCommaPlacer(currentLowestNumberOfTests);
-        }
-
-        private String averageNumberOfPositiveTestsPerDayMonthly(List<List<String>> givenList)
-        {
-            int totalNumberOfAttribute = 0;
-            int numberOfDaysCounted = 0;
-
-            foreach (List<String> currentList in givenList)
-            {
-                totalNumberOfAttribute += int.Parse(currentList.ElementAt(2));
-                numberOfDaysCounted++;
-            }
-
-            if (numberOfDaysCounted == 0)
-            {
-                return "There have been no tests.";
-            }
-            return "The average number of positive tests: " +
-                   (totalNumberOfAttribute / numberOfDaysCounted).ToString();
-        }
-
-        private String averageNumberOfTotalTestsPerDayMonthly(List<List<String>> givenList)
-        {
-            int totalNumberOfTotalTests = 0;
-            int numberOfDaysCounted = 0;
-
-            foreach (List<String> currentList in givenList)
-            {
-                totalNumberOfTotalTests += int.Parse(currentList.ElementAt(2)) + int.Parse(currentList.ElementAt(3));
-                numberOfDaysCounted++;
-            }
-
-            if (numberOfDaysCounted == 0)
-            {
-                return "There have been no tests.";
-            }
-            return "The average number of total tests: " + (totalNumberOfTotalTests / numberOfDaysCounted).ToString();
-        }
-        */
 
         #endregion
     }
